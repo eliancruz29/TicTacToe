@@ -3,12 +3,27 @@ var HelloWorldLayer = cc.Layer.extend({
     tablero:null,
     positionX:115,
     positionY:180,
-    player:null,
+    player:undefined,
     positionTablero: [],
     sizeTablero:3,
     widthBlock:85,
     heightBlock:99,
     sizeLine:10,
+    X:null,
+    O:null,
+    
+    
+    showWinner: function(position){
+        alert("Winner is: "+position.player);
+        this.player = undefined;
+        for(var i=0; i<this.sizeTablero; i++){
+            for(var j=0; j<this.sizeTablero; j++){
+                this.positionTablero[i][j].filled = false;
+                this.positionTablero[i][j].player = undefined;
+                this.removeChildByTag(((3*i)+(j+1)), true);
+            }
+        }
+    },
     
     
     evalueWinner: function(position){
@@ -20,7 +35,7 @@ var HelloWorldLayer = cc.Layer.extend({
                 break;
             }
             if(i === (this.sizeTablero-1)){
-                alert("Winner is: "+position.player);
+                this.showWinner(position);
             }
         }
         for(var j=0; j<this.sizeTablero; j++){
@@ -30,10 +45,33 @@ var HelloWorldLayer = cc.Layer.extend({
                 break;
             }
             if(j === (this.sizeTablero-1)){
-                alert("Winner is: "+position.player);
+                this.showWinner(position);
             }
         }
-        if()
+        if((position.i+position.j!==4) && ((position.i%2===0) || (position.j%2===0))){
+            return;
+        }else{
+            if(position.j!==2 || position.i!==2){
+                if(this.positionTablero[1][1].player===undefined || position.player!==this.positionTablero[1][1].player)
+                    return;
+                else if(this.positionTablero[3-position.i][3-position.j].player!==position.player)
+                    return;
+                else
+                    this.showWinner(position);
+            }else{
+                if(this.positionTablero[0][0].player!==undefined && this.positionTablero[0][0].player===position.player){
+                    if(this.positionTablero[2][2].player!==undefined && this.positionTablero[2][2].player===position.player)
+                        this.showWinner(position);
+                    else
+                        return;
+                }else if(this.positionTablero[0][2].player!==undefined && this.positionTablero[0][2].player===position.player){
+                    if(this.positionTablero[2][0].player!==undefined && this.positionTablero[2][0].player===position.player)
+                        this.showWinner(position);
+                    else
+                        return;
+                }
+            }
+        }
     },
                
     
@@ -51,16 +89,16 @@ var HelloWorldLayer = cc.Layer.extend({
                 this.player = "X";
             }
             icon.setPosition(position.x, position.y);
+            icon.setTag((3*(position.i-1))+position.j);
             position.filled = true;
             this.addChild(icon, 1);
         }
     },
     
     
-    setIcon: function(location, event){
+    setIcon: function(ubicacion, event, ejecutar){
         //console.log("Icon was setted ;)");
-        var ubicacion = location.getLocation();
-		var juego = event.getCurrentTarget();
+        var juego = event.getCurrentTarget();
         var cuadroTablero = juego.tablero.getBoundingBox();
         if(cc.rectContainsPoint(cuadroTablero, ubicacion)){
             //console.log("Estamos dentro :)");
@@ -72,9 +110,30 @@ var HelloWorldLayer = cc.Layer.extend({
                         //console.log("Esta adentro ;)");
                         juego.createIcon(_position);
                         juego.evalueWinner(_position);
+                        ejecutar();
                     }
                 }
             }
+        }
+    },
+    
+    
+    firstMove: function(location, event){
+        var ubicacion = location.getLocation();
+		var juego = event.getCurrentTarget();
+        var spriteX = juego.X.getBoundingBox();
+        var spriteO = juego.O.getBoundingBox();
+        if(cc.rectContainsPoint(spriteX,ubicacion)){
+            juego.player = "X";
+            alert("Usted es el jugador: X");
+        }else if(cc.rectContainsPoint(spriteO,ubicacion)){
+            juego.player = "O";
+            alert("Usted es el jugador: O");
+        }else if(juego.player !== undefined){
+            juego.setIcon(ubicacion, event, function(){return false;});
+        }else{
+            alert("Debe seleccionar un Icono");
+            return false;
         }
     },
     
@@ -89,14 +148,14 @@ var HelloWorldLayer = cc.Layer.extend({
         var tableroCenterX = this.tablero.getPositionX();
         var tableroCenterY = this.tablero.getPositionY();
         //Adding the sprite for X icon
-        var X = new cc.Sprite(res.X_png);
-        X.setPosition(tableroCenterX-this.positionX, tableroCenterY+this.positionY);
-        this.addChild(X, 0);
+        this.X = new cc.Sprite(res.X_png);
+        this.X.setPosition(tableroCenterX-this.positionX, tableroCenterY+this.positionY);
+        this.addChild(this.X, 0);
         //Adding the sprite for O icon
-        var O = new cc.Sprite(res.O_png);
-        O.setPosition(tableroCenterX-this.positionX+X.width-(X.width*0.1), 
+        this.O = new cc.Sprite(res.O_png);
+        this.O.setPosition(tableroCenterX-this.positionX+this.X.width-(this.X.width*0.1), 
                       tableroCenterY+this.positionY);
-        this.addChild(O, 0);
+        this.addChild(this.O, 0);
         
         for(var i=1; i<=this.sizeTablero; i++){
             this.positionTablero.push(new Array(this.sizeTablero));
@@ -109,12 +168,10 @@ var HelloWorldLayer = cc.Layer.extend({
             }
         }
         
-        this.player = "X";
-        
         //Agregando eventos
 		cc.eventManager.addListener({
 			event: cc.EventListener.TOUCH_ONE_BY_ONE,
-			onTouchBegan: this.setIcon
+			onTouchBegan: this.firstMove
 		}, this);
 
         return true;
@@ -128,4 +185,3 @@ var HelloWorldScene = cc.Scene.extend({
         this.addChild(layer);
     }
 });
-
